@@ -1,5 +1,5 @@
 # homebridge-hassio-input_select
-A simple package to bridge input_select's from Home Assistant to Homekit using HomeBridge
+A simple package to bridge mqtt input_select's from Home Assistant to Homekit using HomeBridge
 
    * [Installation](#installation)
    * [Configuration](#configuration)
