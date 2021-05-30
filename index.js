@@ -2,20 +2,19 @@ var mqtt = require('mqtt');
 
 let Service, Characteristic;
 
-module.exports = function (homebridge) {
-	Service = homebridge.hap.Service;
-	Characteristic = homebridge.hap.Characteristic;
-	homebridge.registerAccessory(
-		"homebridge-hassio-input_select",
-		"hass-input-select",
-		HassInputSelect
-	)l
+module.exports = (api) => {
+  api.registerAccessory('HassInputSelect', HassInputSelect);
 };
 
 class HassInputSelect{
 	constructor(log, config) {
 		this.log = log;
+		this.config = config;
+		this.api = api;
+
 		this.name = config.name || 'hass-input-select';
+		this.current_value = "";
+		this.values = config.name || ["No Values"];
 
 		this.mqtt_url = config.mqtt.url || '';
 		this.mqtt_clientid = config.mqtt.clientid || this.createClientId();
@@ -46,6 +45,9 @@ class HassInputSelect{
 	}
 
 	setupHapServices() {
+		this.Service = this.api.hap.Service;
+      		this.Characteristic = this.api.hap.Characteristic;
+
 		this.informationService = new Service.AccessoryInformation();
 		this.informationService
 			.setCharacteristic(Characteristic.Manufacturer, "Tom")
@@ -55,7 +57,46 @@ class HassInputSelect{
 				Characteristic.FirmwareRevision,
 				require('./package.json').version
 			);
+		this.switches = [];
+		this.values.forEach(element => addSwitch(element));
+	}
 
+	addSwitch(name) {
+		this.switches.push(
+			new this.Service(this.Service.Switch)
+		);
+		this.switches[this.switches.length -1]
+			.getCharacteristic(this.Characteristic.On)
+			.setCharacteristic(Characteristic.Name, name)
+			.onGet(this.handleOnGet.bind(this, name))
+			.onSet(this.handleOnSet.bind(this, name));
+	}
+
+	handleOnGet(name) {
+		this.log.debug('Triggered GET On: ' name);
+		
+		if (name == this.current_value) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+
+	handleOnSet(name, value) {
+		this.log.debug('Triggered SET On:' value);
+		
+		if (value) {
+			this.mqtt_client.publish(this.mqtt_topic, name);
+                	this.current_value = name;
+		} else {
+			this.log.debug('Tried to set scene to off');
+		}
+	}
+
+	createClientId() {
+		return 'hass-input-select' +
+			this.name.replace(/[^\x20-\x7F]/g, "") + '_' +
+			Math.random().toString(16).substr(2, 8)
 	}
 
 	setupMQTT() {
@@ -85,9 +126,5 @@ class HassInputSelect{
 		} else {
 			this.log('MQTT Message error topic: ' + topic + ' message: ' + message);
 		}
-	}
-
-	getServices() {
-		return []
 	}
 }
