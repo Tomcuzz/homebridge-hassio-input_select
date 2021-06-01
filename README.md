@@ -19,8 +19,9 @@ An example configuration for HomeBridge is below:
   "accessory": "HassInputSelect",
   "name": "Hass Input Select",
   "values": [
-    "Input1",
-    "Input2"
+    "Morning",
+    "Day",
+    "Night"
   ],
   "mqtt": {
     "url": "mqtt://192.168.1.2:1883",
@@ -32,9 +33,37 @@ An example configuration for HomeBridge is below:
 }
 ```
 
-The following configuration will bridge an input select into mqtt:
+And the following is an example Home Assistant example:
 ```yaml
-TBC
+input_select:
+  home_state:
+    name: Current Home State
+    options:
+      - Morning
+      - Day
+      - Night
+
+automation:
+  - alias: Home Select Mqtt Publish
+    trigger:
+        platform: state
+        entity_id: input_select.home_state
+    action:
+        - service: mqtt.publish
+          data_template:
+              topic: "hass-homebridge/home-state"
+              payload: '{{ states.input_select.home_state.state }}'
+
+  - alias: Home Select Mqtt Subscribe
+    trigger:
+        platform: mqtt
+        topic: "hass-homebridge/home-state"
+    action:
+        - service: input_select.select_option
+          target:
+              entity_id: input_select.home_state
+          data:
+              option: "{{ trigger.payload }}
 ```
 
 # Release Notes
