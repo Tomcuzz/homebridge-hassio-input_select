@@ -21,6 +21,7 @@ class HassInputSelect{
 		this.mqtt_username = config.mqtt.username || 'hass-input-select';
 		this.mqtt_password = config.mqtt.password || 'password';
 		this.mqtt_topic = config.mqtt.topic || 'hass-input-select';
+		this.mqtt_will_topic = config.mqtt.will || 'hass-input-select-will';
 		this.mqtt_options = {
 			keepalive: 10,
 			clientId: this.mqtt_clientId,
@@ -84,6 +85,10 @@ class HassInputSelect{
 		} else {
 			this.log('Tried to set scene to off');
 		}
+		this.updateSwitches(name)
+	}
+
+	updateSwitches(name) {
 		for (let key in this.Switches) {
 			if (key == this.current_value) {
 				
@@ -126,8 +131,9 @@ class HassInputSelect{
 
 	handleMqttMessage(topic, message) {
 		this.log("MQTT receieved, Topic: " + topic + " message: " + message);
-		if (topic == this.mqtt_sensor_topic) {
-			this.handleOnSet(message, 1);
+		if (topic == this.mqtt_topic) {
+			this.current_value = message;
+			this.updateSwitches(message)
 		} else {
 			this.log('MQTT Message error topic: ' + topic + ' message: ' + message);
 		}

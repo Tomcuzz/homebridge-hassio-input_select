@@ -1,6 +1,6 @@
 {
   "name": "homebridge-hassio-input_select",
-  "version": "0.0.26",
+  "version": "0.0.30",
   "description": "A simple package to bridge input_select's from Home Assistant to Homekit using HomeBridge",
   "main": "index.js",
   "scripts": {
