@@ -33,7 +33,7 @@ An example configuration for HomeBridge is below:
 }
 ```
 
-And the following is an example Home Assistant example:
+And the following is an example Home Assistant config extract:
 ```yaml
 input_select:
   home_state:
