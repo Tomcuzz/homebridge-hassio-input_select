@@ -7,14 +7,14 @@ module.exports = (api) => {
 };
 
 class HassInputSelect{
-	constructor(log, config) {
+	constructor(log, config, api) {
 		this.log = log;
 		this.config = config;
 		this.api = api;
 
 		this.name = config.name || 'hass-input-select';
 		this.current_value = "";
-		this.values = config.name || ["No Values"];
+		this.values = config.values || ["No Values"];
 
 		this.mqtt_url = config.mqtt.url || '';
 		this.mqtt_clientid = config.mqtt.clientid || this.createClientId();
@@ -44,37 +44,31 @@ class HassInputSelect{
 		this.setupHapServices();
 	}
 
+	getServices() {
+		this.toReturn = []
+		for (let key in this.Switches) {
+			this.toReturn.push(this.Switches[key])
+		}
+		return this.toReturn;
+	}
+
 	setupHapServices() {
 		this.Service = this.api.hap.Service;
       		this.Characteristic = this.api.hap.Characteristic;
-
-		this.informationService = new Service.AccessoryInformation();
-		this.informationService
-			.setCharacteristic(Characteristic.Manufacturer, "Tom")
-			.setCharacteristic(Characteristic.Model, "HomeAssistant-Input-Select")
-			.setCharacteristic(Characteristic.SerialNumber, "HAIS-" + this.name)
-			.setCharacteristic(
-				Characteristic.FirmwareRevision,
-				require('./package.json').version
-			);
-		this.switches = [];
-		this.values.forEach(element => addSwitch(element));
+		this.Switches = {};
+		this.values.forEach(element => this.addSwitch(element));
 	}
 
 	addSwitch(name) {
-		this.switches.push(
-			new this.Service(this.Service.Switch)
-		);
-		this.switches[this.switches.length -1]
+		this.log("Adding switch " + name);
+		this.Switches[name] = new this.Service.Switch(name, name);
+		this.Switches[name]
 			.getCharacteristic(this.Characteristic.On)
-			.setCharacteristic(Characteristic.Name, name)
 			.onGet(this.handleOnGet.bind(this, name))
 			.onSet(this.handleOnSet.bind(this, name));
 	}
 
 	handleOnGet(name) {
-		this.log.debug('Triggered GET On: ' name);
-		
 		if (name == this.current_value) {
 			return 1;
 		} else {
@@ -83,33 +77,44 @@ class HassInputSelect{
 	}
 
 	handleOnSet(name, value) {
-		this.log.debug('Triggered SET On:' value);
-		
+		this.log(name + " Was set to " + value);
 		if (value) {
 			this.mqtt_client.publish(this.mqtt_topic, name);
                 	this.current_value = name;
 		} else {
-			this.log.debug('Tried to set scene to off');
+			this.log('Tried to set scene to off');
+		}
+		for (let key in this.Switches) {
+			if (key == this.current_value) {
+				
+				this.Switches[key].getCharacteristic(this.Characteristic.On).updateValue(true);
+			} else {
+				this.Switches[key].getCharacteristic(this.Characteristic.On).updateValue(false);
+			}
 		}
 	}
 
 	createClientId() {
 		return 'hass-input-select' +
 			this.name.replace(/[^\x20-\x7F]/g, "") + '_' +
-			Math.random().toString(16).substr(2, 8)
+			Math.random().toString(16).substr(2, 8);
 	}
 
 	setupMQTT() {
-                this.mqtt_client = mqtt.connect(this.mqtt_url, this.mqtt_options);
-                this.mqtt_client.on('error', function (err) {
-                        this.log('MQTT Error: ' + err);
-                }.bind(this));
-                this.mqtt_client.on('message', this.handleMqttMessage.bind(this));
-                this.mqtt_client.on('connect', this.handleMqttConnected.bind(this));
+		this.log("Setting up MQTT connetion to: " + this.mqtt_url)
+                this.mqtt_client = mqtt.connect(this.mqtt_url, this.mqtt_options)
+		this.mqtt_client.on('connect', this.handleMqttConnected.bind(this));
+		this.mqtt_client.on('message', this.handleMqttMessage.bind(this));
+                this.mqtt_client.on('error', this.handleMqttError.bind(this));
         }
+
+	handleMqttError(err) {
+		this.log('MQTT Error: ' + err);
+	}
 
 	handleMqttConnected() {
 		this.log('MQTT Connected');
+		this.log('MQTT Subscribing to ' + this.mqtt_topic)
 		this.mqtt_client.subscribe(this.mqtt_topic, function (err) {
 			if (err) {
 				this.log('MQTT Sensor Subscription error:' + err);
@@ -122,7 +127,7 @@ class HassInputSelect{
 	handleMqttMessage(topic, message) {
 		this.log("MQTT receieved, Topic: " + topic + " message: " + message);
 		if (topic == this.mqtt_sensor_topic) {
-
+			this.handleOnSet(message, 1);
 		} else {
 			this.log('MQTT Message error topic: ' + topic + ' message: ' + message);
 		}
