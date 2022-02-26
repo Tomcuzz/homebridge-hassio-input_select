@@ -21,6 +21,7 @@ class HassInputSelect{
 		this.mqtt_username = config.mqtt.username || 'hass-input-select';
 		this.mqtt_password = config.mqtt.password || 'password';
 		this.mqtt_topic = config.mqtt.topic || 'hass-input-select';
+		this.mqtt_start_topic = config.mqtt.start || 'hass-input-bool-start';
 		this.mqtt_will_topic = config.mqtt.will || 'hass-input-select-will';
 		this.mqtt_options = {
 			keepalive: 10,
@@ -111,6 +112,7 @@ class HassInputSelect{
 		this.mqtt_client.on('connect', this.handleMqttConnected.bind(this));
 		this.mqtt_client.on('message', this.handleMqttMessage.bind(this));
                 this.mqtt_client.on('error', this.handleMqttError.bind(this));
+		this.mqtt_client.publish(this.mqtt_start_topic, 'started');
         }
 
 	handleMqttError(err) {
